@@ -1,0 +1,37 @@
+#!/bin/sh
+. /usr/share/libubox/jshn.sh
+. /usr/lib/usb-tether/common.sh
+usb_device() {
+	json_add_object
+	json_add_string port "$usb_port"
+	json_add_string vendor "$usb_vendor"
+	json_add_string product_id "$usb_product"
+	json_add_string serial "$usb_serial"
+	json_add_string name "${usb_name:-USB device}"
+	json_add_string manufacturer "$usb_maker"
+	json_add_array interfaces
+	for dev in $usb_interfaces; do
+		json_add_object
+		json_add_string name "$dev"
+		json_add_string state "$(usb_read "$USB_SYS_ROOT/class/net/$dev/operstate")"
+		json_add_string carrier "$(usb_read "$USB_SYS_ROOT/class/net/$dev/carrier")"
+		json_add_string driver "$(basename "$(readlink -f "$USB_SYS_ROOT/class/net/$dev/device/driver")")"
+		json_close_object
+	done
+	json_close_array
+	json_close_object
+}
+case "$1" in
+	list) printf '%s\n' '{"status":{}}' ;;
+	call)
+		[ "$2" = status ] || exit 1
+		json_init
+		json_add_boolean ipheth_present "$([ -d "$USB_SYS_ROOT/module/ipheth" ] && echo 1 || echo 0)"
+		json_add_boolean usbmuxd_running "$(pidof usbmuxd >/dev/null 2>&1 && echo 1 || echo 0)"
+		json_add_array devices
+		usb_scan
+		json_close_array
+		json_dump
+		;;
+	*) exit 1 ;;
+esac

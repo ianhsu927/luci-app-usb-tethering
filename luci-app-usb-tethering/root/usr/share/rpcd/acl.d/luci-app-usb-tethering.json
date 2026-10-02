@@ -1,0 +1,27 @@
+{
+  "luci-app-usb-tethering": {
+    "description": "Manage USB phone tethering",
+    "read": {
+      "ubus": {
+        "usb.tether": [
+          "status"
+        ],
+        "network.interface.usb_tether": [
+          "status"
+        ]
+      },
+      "uci": [
+        "usb_tether",
+        "network",
+        "firewall"
+      ]
+    },
+    "write": {
+      "uci": [
+        "usb_tether",
+        "network",
+        "firewall"
+      ]
+    }
+  }
+}

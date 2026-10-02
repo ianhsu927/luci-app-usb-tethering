@@ -1,0 +1,45 @@
+#!/bin/sh
+# Hotplug rebinding is restricted to this plugin's dedicated interface.
+. /usr/lib/usb-tether/common.sh
+mkdir /var/lock/usb-tether-rebind 2>/dev/null || exit 0
+trap 'rmdir /var/lock/usb-tether-rebind' EXIT
+trap 'exit 1' HUP INT TERM
+[ "$(uci -q get usb_tether.main.enabled)" = 1 ] || exit 0
+[ "$(uci -q get network.usb_tether.usb_tether_owned)" = 1 ] || exit 0
+# Do not commit unrelated pending CLI changes.
+[ -z "$(uci -q changes network)" ] || exit 0
+selected_port="$(uci -q get usb_tether.main.port)"
+selected_vendor="$(uci -q get usb_tether.main.vendor)"
+selected_product="$(uci -q get usb_tether.main.product_id)"
+selected_serial="$(uci -q get usb_tether.main.serial)"
+selected_device="$(uci -q get usb_tether.main.device)"
+found=""
+usb_device() {
+	[ "$usb_vendor" = "$selected_vendor" ] || return
+	[ "$usb_product" = "$selected_product" ] || return
+	if [ -n "$selected_serial" ]; then
+		[ "$usb_serial" = "$selected_serial" ] || return
+	else
+		[ "$usb_port" = "$selected_port" ] || return
+	fi
+	for dev in $usb_interfaces; do
+		case "$dev" in *[!a-zA-Z0-9_.:-]*|'') continue ;; esac
+		# A multi-interface device must not silently switch network functions.
+		if [ "${usb_interfaces# }" != "$dev" ] && [ "$dev" != "$selected_device" ]; then continue; fi
+		found="$dev"
+		break
+	done
+}
+usb_scan
+[ -n "$found" ] || exit 0
+if [ "$(uci -q get network.usb_tether.device)" != "$found" ]; then
+	uci set "network.usb_tether.device=$found" && uci commit network || exit 1
+	ubus call network reload >/dev/null 2>&1
+fi
+# An already active interface must not be restarted by duplicate events.
+. /usr/share/libubox/jshn.sh
+if json_load "$(ubus call network.interface.usb_tether status 2>/dev/null)"; then
+	json_get_var usb_up up
+	[ "$usb_up" = 1 ] && exit 0
+fi
+ifup usb_tether

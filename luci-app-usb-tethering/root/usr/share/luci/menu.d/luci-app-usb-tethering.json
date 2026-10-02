@@ -1,0 +1,15 @@
+{
+  "admin/network/usb-tethering": {
+    "title": "USB 热点",
+    "order": 65,
+    "action": {
+      "type": "view",
+      "path": "usb-tethering/overview"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-usb-tethering"
+      ]
+    }
+  }
+}

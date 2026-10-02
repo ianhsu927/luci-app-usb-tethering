@@ -1,0 +1,4 @@
+#!/bin/sh
+/etc/init.d/usbmuxd enable 2>/dev/null || :
+/etc/init.d/usbmuxd start 2>/dev/null || :
+exit 0
